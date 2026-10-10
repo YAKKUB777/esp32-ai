@@ -1,5 +1,5 @@
 // Host checks validate the fixtures and rejection paths, not Xtensa instructions.
-// cc -std=c11 -O1 -fsanitize=address,undefined \
+// cc -std=c11 -O1 -fsanitize=address,undefined 
 //   runtime/host_verify/connectome_simd_test.c -o /tmp/connectome_simd_test
 // /tmp/connectome_simd_test
 #include "../connectome_simd_test.h"
