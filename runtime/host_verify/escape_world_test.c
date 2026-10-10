@@ -2,7 +2,7 @@
 // spider's approach/catch/retreat cycle and arena bounds over a long session.
 // Decisions are applied against a sample taken earlier, as on the board.
 // Synthetic decisions exercise the world, not the brain.
-// cc -std=c11 -O1 -ffp-contract=off -Wall -Wextra -Werror -fsanitize=address,undefined \
+// cc -std=c11 -O1 -ffp-contract=off -Wall -Wextra -Werror -fsanitize=address,undefined 
 //   runtime/host_verify/escape_world_test.c -lm -o /tmp/escape_world_test
 // /tmp/escape_world_test
 // Assertions must remain enabled. No model assets or ESP32 required.
