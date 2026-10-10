@@ -1,5 +1,5 @@
 // Decoder bounds and overlapping-match fixtures. Assertions must be enabled.
-// cc -std=c11 -O1 -fsanitize=address,undefined \
+// cc -std=c11 -O1 -fsanitize=address,undefined 
 //   runtime/host_verify/lz4_block_test.c -o /tmp/lz4_block_test
 // /tmp/lz4_block_test
 #ifndef LZ4_DECODE
