@@ -1,5 +1,5 @@
 // Self-contained regression fixtures. Build from the repository root:
-// cc -std=c11 -O1 -ffp-contract=off -fsanitize=address,undefined \
+// cc -std=c11 -O1 -ffp-contract=off -fsanitize=address,undefined 
 //   runtime/host_verify/connectome_stream_test.c -lz -lm -o /tmp/connectome_stream_test
 // /tmp/connectome_stream_test
 // Assertions must remain enabled. No model assets or ESP32 required.
