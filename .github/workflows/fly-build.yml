@@ -24,11 +24,12 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
-
+ 
       - name: Install Hugging Face CLI
         run: |
-          uv tool install --bin-dir "$HOME/.local/bin" huggingface_hub
+          uv tool install huggingface_hub
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
           hf --help
 
       - name: Install host verification dependencies
