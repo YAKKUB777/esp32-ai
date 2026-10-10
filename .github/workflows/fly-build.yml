@@ -1,0 +1,102 @@
+
+name: Build Fly for ESP32-S3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-fly:
+    name: Verify and compile Fly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Hugging Face CLI
+        run: |
+          uv tool install --bin-dir "$HOME/.local/bin" huggingface_hub
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          hf --help
+
+      - name: Install host verification dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential zlib1g-dev
+
+      - name: Fetch and verify released model
+        run: |
+          chmod +x scripts/fetch_model.sh
+          scripts/fetch_model.sh fly
+
+      - name: Prepare and validate Fly assets
+        run: |
+          uv run --no-project python \
+            firmware/esp32_fly/tools/prepare_assets.py \
+            --bundle artifacts/fly \
+            --manifest firmware/esp32_fly/model_bundle.json
+
+      - name: Run host golden tests
+        run: |
+          mkdir -p artifacts/fly/verification
+          uv run --no-project python \
+            firmware/esp32_fly/tools/verify.py host \
+            --bundle artifacts/fly \
+            --manifest firmware/esp32_fly/model_bundle.json \
+            --report artifacts/fly/verification/host-gold.json
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli core update-index \
+            --additional-urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+          arduino-cli core install esp32:esp32@3.3.10 \
+            --additional-urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+      - name: Install display libraries
+        run: |
+          arduino-cli lib install 'Adafruit SH110X@2.1.14'
+          arduino-cli lib install 'Adafruit GFX Library@1.12.6'
+          arduino-cli lib install 'Adafruit BusIO@1.17.4'
+
+      - name: Compile Fly firmware
+        run: |
+          mkdir -p artifacts/fly/build
+
+          arduino-cli compile \
+            --fqbn 'esp32:esp32:esp32s3:UploadSpeed=921600,USBMode=hwcdc,CDCOnBoot=cdc,UploadMode=default,CPUFreq=240,FlashMode=qio,FlashSize=16M,PartitionScheme=custom,PSRAM=opi,DebugLevel=info' \
+            --build-property 'compiler.optimization_flags=-O3 -ffp-contract=off' \
+            --build-property 'upload.maximum_size=2097152' \
+            --build-path "$PWD/artifacts/fly/build" \
+            firmware/esp32_fly
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fly-esp32-s3-build
+          if-no-files-found: error
+          path: |
+            artifacts/fly/connectome.fcl
+            artifacts/fly/model_bundle.json
+            artifacts/fly/metadata.json
+            artifacts/fly/build/
+            artifacts/fly/verification/host-gold.json
+          retention-days: 14
