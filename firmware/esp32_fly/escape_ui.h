@@ -4,13 +4,13 @@
 #include "esp_timer.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
+#include <Adafruit_SSD1306.h>
 #include "escape_world.h"
 
 // The display task owns world ticks and OLED writes after setup; until it starts,
 // setup owns the OLED. The Arduino loop samples the world and applies escape
 // decisions while holding game_mutex.
-static Adafruit_SH1106G oled(128, 64, &Wire, -1);
+static Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 static SemaphoreHandle_t game_mutex;
 static EscapeWorld world;
 static bool display_present = false, game_active = false, display_task_running = false;
@@ -25,7 +25,7 @@ static char game_error[48] = {0};
 // Boot failures happen before the display task exists, so setup draws them.
 static void ui_draw_boot_error(const char *reason) {
     oled.clearDisplay();
-    oled.setTextColor(SH110X_WHITE);
+    oled.setTextColor(SSD1306_WHITE);
     oled.setTextSize(1);
     oled.setCursor(34, 4);
     oled.print("FLY ESCAPE");
@@ -61,7 +61,7 @@ static void ui_error_reason(char *reason, size_t size) {
 // The display comes up even without the mutex, so that failure can be shown too.
 static bool ui_begin() {
     game_mutex = xSemaphoreCreateMutex();
-    Wire.begin(18, 46);
+    Wire.begin(18, 16);
     Wire.setClock(400000);
     Wire.setTimeOut(50);
     for (uint8_t address = 0x3c; address <= 0x3d; address++) {
@@ -73,10 +73,10 @@ static bool ui_begin() {
     }
     if (!display_address)
         return false;
-    display_present = oled.begin(display_address, true);
+    display_present = oled.begin(SSD1306_SWITCHCAPVCC, display_address);
     if (display_present) {
         oled.clearDisplay();
-        oled.setTextColor(SH110X_WHITE);
+        oled.setTextColor(SSD1306_WHITE);
         oled.setTextSize(1);
         oled.setCursor(34, 12);
         oled.print("FLY ESCAPE");
@@ -117,7 +117,7 @@ static int ui_format_status(char *line, size_t size) {
     return snprintf(
         line, size,
         "{\"event\":\"escape\",\"active\":%s,\"display_present\":%s,\"display_addr\":%u,\"sda\":18,"
-        "\"scl\":46,\"escapes\":%u,\"caught\":%u,\"encounters\":%u,\"fly\":[%.3f,%.3f,%.4f],"
+        "\"scl\":16,\"escapes\":%u,\"caught\":%u,\"encounters\":%u,\"fly\":[%.3f,%.3f,%.4f],"
         "\"fly_state\":%d,\"spider\":[%.3f,%.3f],\"spider_state\":%d,\"ticks\":%llu,\"frames\":%u,"
         "\"neural_steps\":%u,\"looms\":[%.9g,%.9g],\"drives\":[%.9g,%.9g],\"graph_us\":%llu,"
         "\"cycle_us\":%llu}\n",
@@ -139,15 +139,15 @@ static void ui_status() {
 static void draw_fly(const EscapeWorld *w, uint32_t frame) {
     int x = (int)lround(w->fly_x), y = (int)lround(w->fly_y);
     double hx = cos(w->fly_heading), hy = sin(w->fly_heading);
-    oled.fillCircle(x, y, 1, SH110X_WHITE);
-    oled.drawPixel(x + (int)lround(2 * hx), y + (int)lround(2 * hy), SH110X_WHITE);
+    oled.fillCircle(x, y, 1, SSD1306_WHITE);   
+    oled.drawPixel(x + (int)lround(2 * hx), y + (int)lround(2 * hy), SSD1306_WHITE);
     int span = (w->fly_state == FLY_JUMP || frame % 2) ? 3 : 2;
     for (int s = -1; s <= 1; s += 2)
         oled.drawLine(x, y, x + (int)lround(-hx - s * span * hy), y + (int)lround(-hy + s * span * hx),
-                      SH110X_WHITE);
+                      SSD1306_WHITE);
     if (w->fly_state == FLY_JUMP)
         oled.drawLine(x - (int)lround(3 * hx), y - (int)lround(3 * hy), x - (int)lround(6 * hx),
-                      y - (int)lround(6 * hy), SH110X_WHITE);
+                      y - (int)lround(6 * hy), SSD1306_WHITE);
 }
 
 // A spider: round body and four legs on each side that wiggle as it walks.
@@ -155,12 +155,12 @@ static void draw_spider(const EscapeWorld *w, uint32_t frame) {
     if (w->spider_state == SPIDER_ABSENT)
         return;
     int x = (int)lround(w->spider_x), y = (int)lround(w->spider_y);
-    oled.fillCircle(x, y, 2, SH110X_WHITE);
+    oled.fillCircle(x, y, 2, SSD1306_WHITE);
     for (int k = 0; k < 4; k++) {
         double angle = -0.9 + 0.6 * k + (((frame / 2) + k) % 2 ? 0.15 : -0.15);
         int dx = (int)lround(5 * cos(angle)), dy = (int)lround(5 * sin(angle));
-        oled.drawLine(x, y, x + dx, y + dy, SH110X_WHITE);
-        oled.drawLine(x, y, x - dx, y + dy, SH110X_WHITE);
+        oled.drawLine(x, y, x + dx, y + dy, SSD1306_WHITE);
+        oled.drawLine(x, y, x - dx, y + dy, SSD1306_WHITE);
     }
 }
 
@@ -168,10 +168,10 @@ static void draw_spider(const EscapeWorld *w, uint32_t frame) {
 // rising bar sits where the danger is. The marker in the middle is the threshold.
 static void draw_drive(int x, float drive, float threshold) {
     const int y = 1, width = 22;
-    oled.drawRect(x, y, width, 6, SH110X_WHITE);
+    oled.drawRect(x, y, width, 6, SSD1306_WHITE);
     int fill = (int)lround(fmin(1.0, fmax(0.0, drive / (2.0 * threshold))) * (width - 2));
-    oled.fillRect(x + 1, y + 1, fill, 4, SH110X_WHITE);
-    oled.drawFastVLine(x + width / 2, y, 6, SH110X_BLACK);
+    oled.fillRect(x + 1, y + 1, fill, 4, SSD1306_WHITE);
+    oled.drawFastVLine(x + width / 2, y, 6, SSD1306_BLACK);
 }
 
 static void ui_task(void *threshold_argument) {
@@ -201,9 +201,9 @@ static void ui_task(void *threshold_argument) {
             draw_spider(&copy, frame);
             draw_fly(&copy, frame);
             // The header is drawn last so sprites near the top edge never cover it.
-            oled.fillRect(0, 0, 128, 12, SH110X_BLACK);
+            oled.fillRect(0, 0, 128, 12, SSD1306_BLACK);
             oled.setTextSize(1);
-            oled.setTextColor(SH110X_WHITE);
+            oled.setTextColor(SSD1306_WHITE);
             char counters[24];
             // Capped so the text never reaches the activity bars.
             snprintf(counters, sizeof(counters), "%u/%u",
@@ -213,13 +213,13 @@ static void ui_task(void *threshold_argument) {
             oled.print(counters);
             draw_drive(2, drives[0], threshold);
             draw_drive(104, drives[1], threshold);
-            oled.drawFastHLine(0, 11, 128, SH110X_WHITE);
+            oled.drawFastHLine(0, 11, 128, SSD1306_WHITE);
             if (!active) {
                 oled.setCursor(46, 30);
                 oled.print("PAUSED");
             }
             if (error[0]) {
-                oled.fillRect(0, 18, 128, 30, SH110X_BLACK);
+                oled.fillRect(0, 18, 128, 30, SSD1306_BLACK);
                 oled.setCursor(0, 20);
                 oled.print(error);
             }
