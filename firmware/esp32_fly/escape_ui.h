@@ -61,7 +61,7 @@ static void ui_error_reason(char *reason, size_t size) {
 // The display comes up even without the mutex, so that failure can be shown too.
 static bool ui_begin() {
     game_mutex = xSemaphoreCreateMutex();
-    Wire.begin(18, 26);
+    Wire.begin(17, 21);
     Wire.setClock(400000);
     Wire.setTimeOut(50);
     for (uint8_t address = 0x3c; address <= 0x3d; address++) {
@@ -116,8 +116,8 @@ static int ui_format_status(char *line, size_t size) {
     xSemaphoreGive(game_mutex);
     return snprintf(
         line, size,
-        "{\"event\":\"escape\",\"active\":%s,\"display_present\":%s,\"display_addr\":%u,\"sda\":18,"
-        "\"scl\":26,\"escapes\":%u,\"caught\":%u,\"encounters\":%u,\"fly\":[%.3f,%.3f,%.4f],"
+        "{\"event\":\"escape\",\"active\":%s,\"display_present\":%s,\"display_addr\":%u,\"sda\":17,"
+        "\"scl\":21,\"escapes\":%u,\"caught\":%u,\"encounters\":%u,\"fly\":[%.3f,%.3f,%.4f],"
         "\"fly_state\":%d,\"spider\":[%.3f,%.3f],\"spider_state\":%d,\"ticks\":%llu,\"frames\":%u,"
         "\"neural_steps\":%u,\"looms\":[%.9g,%.9g],\"drives\":[%.9g,%.9g],\"graph_us\":%llu,"
         "\"cycle_us\":%llu}\n",
